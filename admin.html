@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f7f3e8">
 <meta name="robots" content="noindex">
+<link rel="manifest" href="admin.webmanifest">
+<link rel="icon" href="icons/admin-192.png">
+<link rel="apple-touch-icon" href="icons/admin-192.png">
 <title>Didi's Dogs Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -498,5 +501,6 @@
   start();
 })();
 </script>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});</script>
 </body>
 </html>
