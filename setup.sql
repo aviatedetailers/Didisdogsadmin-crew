@@ -240,3 +240,17 @@ alter function public.touch_updated_at() set search_path = public;
 revoke execute on function public.handle_new_user(), public.profiles_guard(), public.shifts_guard(), public.touch_updated_at() from public, anon, authenticated;
 revoke execute on function public.is_admin(), public.is_worker() from public, anon;
 grant execute on function public.is_admin(), public.is_worker() to authenticated;
+
+-- ========== Changing a pay rate updates that worker's unpaid shifts ==========
+create or replace function public.profiles_rate_sync() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.pay_rate is distinct from old.pay_rate then
+    update public.shifts set rate = new.pay_rate where worker_id = new.id and not paid;
+  end if;
+  return new;
+end $$;
+revoke execute on function public.profiles_rate_sync() from public, anon, authenticated;
+drop trigger if exists profiles_rate_sync on public.profiles;
+create trigger profiles_rate_sync after update of pay_rate on public.profiles
+  for each row execute function public.profiles_rate_sync();

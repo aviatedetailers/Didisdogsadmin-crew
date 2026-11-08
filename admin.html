@@ -392,8 +392,9 @@
       </div>
       <p class="muted small" id="sH" style="margin:8px 0 0"></p>
       <label>Event / note</label><input id="sN" value="${esc(s.note || "")}" placeholder="e.g. Cohen wedding">
-      ${isNew ? "" : `<div class="switch"><span>Paid</span><input id="sP" type="checkbox" ${s.paid ? "checked" : ""}></div>
-        <p class="muted small" style="margin:0">Rate on this shift: ${money(s.rate)}/hr</p>`}
+      ${isNew ? "" : `<label>Pay per hour for this shift ($)</label>
+        <input id="sR" type="number" inputmode="decimal" min="0" step="0.01" value="${num(s.rate)}">
+        <div class="switch"><span>Paid</span><input id="sP" type="checkbox" ${s.paid ? "checked" : ""}></div>`}
       <div class="actions">
         ${isNew ? "" : `<button class="btn danger" id="del">Delete</button>`}
         <button class="btn" id="save">Save</button>
@@ -413,7 +414,7 @@
         if (!row.work_date || !row.start_time || !row.end_time) return toast("Add the date, start and end.");
         if (row.start_time === row.end_time) return toast("Start and end can't be the same.");
         if (isNew) row.worker_id = el.querySelector("#sW").value;
-        else row.paid = el.querySelector("#sP").checked;
+        else { row.paid = el.querySelector("#sP").checked; row.rate = Math.max(0, Number(el.querySelector("#sR").value) || 0); }
         const res = isNew
           ? await sb.from("shifts").insert(row).select().single()
           : await sb.from("shifts").update(row).eq("id", s.id).select().single();
@@ -449,7 +450,7 @@
       <label>Name</label><input id="pN" value="${esc(p.name)}">
       <label>Phone</label><input id="pPh" type="tel" value="${esc(p.phone || "")}">
       <label>Pay per hour ($)</label><input id="pR" type="number" inputmode="decimal" min="0" step="0.01" value="${num(p.pay_rate)}">
-      <p class="muted small" style="margin:6px 0 0">New shifts use this rate. Shifts already logged keep their rate.</p>
+      <p class="muted small" style="margin:6px 0 0">Changing this also updates their unpaid hours. Hours already paid stay the same.</p>
       <label>Access</label>
       <select id="pRole">
         <option value="crew" ${p.role === "crew" ? "selected" : ""}>Worker (logs hours only)</option>
@@ -466,7 +467,11 @@
           pay_rate: Math.max(0, Number(el.querySelector("#pR").value) || 0),
           role: el.querySelector("#pRole").value
         };
-        if (await savePerson(p, row)) close();
+        const rateChanged = Number(row.pay_rate) !== Number(p.pay_rate);
+        if (await savePerson(p, row)) {
+          close();
+          if (rateChanged) { await loadAll(); render(); }
+        }
       };
     });
   }
