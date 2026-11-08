@@ -190,3 +190,10 @@ details.manual summary { cursor: pointer; font-weight: 600; color: var(--navy); 
 .onclock { margin-top: 4px; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--ok); }
 .onclock::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); margin-right: 6px; vertical-align: 1px; }
 .btn.zelle { background: #6d1ed4; border-color: #6d1ed4; }
+.zelle-tile {
+  display: flex; align-items: center; gap: 14px; margin: -2px 0 14px; padding: 14px 16px; border-radius: var(--radius);
+  background: #6d1ed4; color: #fff; text-decoration: none; font-weight: 600; line-height: 1.3;
+}
+.zelle-tile .zl { font-family: var(--display); font-size: 26px; font-weight: 700; letter-spacing: .01em; }
+.zelle-tile b { font-size: 18px; }
+.zelle-tile span:last-child { font-size: 28px; opacity: .8; }

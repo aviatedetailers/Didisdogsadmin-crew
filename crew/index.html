@@ -122,9 +122,12 @@
 
       <h2>Get paid by Zelle</h2>
       <div class="card">
-        <label style="margin-top:0">Your Zelle phone or email</label>
-        <div class="row"><input id="zl" class="grow" value="${esc(me.zelle || "")}" placeholder="Number or email you use for Zelle">
-        <button class="btn sm" id="zlSave">Save</button></div>
+        ${me.zelle
+          ? `<div class="row"><span class="status green"></span><div class="grow"><div class="name">Zelle QR added</div><div class="muted small">${esc(me.zelle)}</div></div>
+             <button class="btn light sm" id="zlUp">Change</button></div>`
+          : `<div class="muted small" style="margin-bottom:12px">In your bank app open <b>Zelle</b>, find <b>your QR code</b>, and take a screenshot. Then upload it here.</div>
+             <button class="btn full zelle" id="zlUp">Upload my Zelle QR code</button>`}
+        <input type="file" id="zlFile" accept="image/*" hidden>
       </div>
 
       <h2>My shifts</h2>
@@ -209,11 +212,17 @@
       shifts.unshift(data); sortShifts();
       render(); toast(`Saved ${num(data.hours)} hours`);
     };
-    app.querySelector("#zlSave").onclick = async () => {
-      const zelle = DD.cleanZelle(app.querySelector("#zl").value) || null;
-      const { data, error } = await sb.from("profiles").update({ zelle }).eq("id", me.id).select().single();
-      if (error) return toast(friendlyError(error));
-      me = data; app.querySelector("#zl").value = me.zelle || ""; toast("Zelle saved");
+    const zlFile = app.querySelector("#zlFile");
+    app.querySelector("#zlUp").onclick = () => zlFile.click();
+    zlFile.onchange = async () => {
+      const f = zlFile.files[0]; if (!f) return;
+      try {
+        const z = await DD.readZelleQR(f);
+        const { data, error } = await sb.from("profiles").update({ zelle: z.zelle }).eq("id", me.id).select().single();
+        if (error) throw error;
+        me = data; render(); toast("Zelle QR added");
+      } catch (e) { toast(friendlyError(e)); }
+      zlFile.value = "";
     };
     app.querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => fix(shifts.find((s) => s.id == b.dataset.id))));
   }

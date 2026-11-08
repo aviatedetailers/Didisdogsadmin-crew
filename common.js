@@ -57,6 +57,43 @@
     const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(json)));
     return "https://enroll.zellepay.com/qr-codes?data=" + b64;
   }
+  // Read a Zelle QR screenshot -> the phone/email inside it.
+  function loadScript(src) {
+    return new Promise((ok, fail) => {
+      const t = document.createElement("script"); t.src = src; t.onload = ok; t.onerror = fail;
+      document.head.appendChild(t);
+    });
+  }
+  async function decodeQR(file) {
+    const bmp = await createImageBitmap(file);
+    if ("BarcodeDetector" in window) {
+      try {
+        const found = await new window.BarcodeDetector({ formats: ["qr_code"] }).detect(bmp);
+        if (found && found[0]) return found[0].rawValue;
+      } catch (e) { /* fall back below */ }
+    }
+    if (!window.jsQR) await loadScript("https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js");
+    const scale = Math.min(1, 1400 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    const ctx = c.getContext("2d"); ctx.drawImage(bmp, 0, 0, c.width, c.height);
+    const img = ctx.getImageData(0, 0, c.width, c.height);
+    const code = window.jsQR(img.data, c.width, c.height, { inversionAttempts: "attemptBoth" });
+    return code ? code.data : "";
+  }
+  async function readZelleQR(file) {
+    const text = await decodeQR(file);
+    if (!text) throw new Error("Couldn't find a QR code in that picture. Try a clearer screenshot.");
+    let info = null;
+    try {
+      const u = new URL(text);
+      if (!/zellepay\.com$/i.test(u.hostname)) throw 0;
+      const raw = atob(decodeURIComponent(u.searchParams.get("data") || ""));
+      info = JSON.parse(new TextDecoder().decode(Uint8Array.from(raw, (ch) => ch.charCodeAt(0))));
+    } catch (e) { info = null; }
+    if (!info || !info.token) throw new Error("That QR code isn't a Zelle code. Use the one from Zelle in your bank app.");
+    return { name: info.name || "", zelle: cleanZelle(info.token) };
+  }
   function mapsLink(place) {
     return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(place);
   }
@@ -166,5 +203,5 @@
     return data;
   }
 
-  window.DD = { sb, ready, esc, money, num, today, fmtDate, fmtTime, calcHours, nowTime, minutesSince, fmtDuration, mapsLink, cleanZelle, zelleLink, toast, sheet, friendlyError, authScreen, notConnected, loadMe };
+  window.DD = { sb, ready, esc, money, num, today, fmtDate, fmtTime, calcHours, nowTime, minutesSince, fmtDuration, mapsLink, cleanZelle, zelleLink, readZelleQR, toast, sheet, friendlyError, authScreen, notConnected, loadMe };
 })();
