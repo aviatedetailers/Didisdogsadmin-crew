@@ -35,9 +35,9 @@ header.top {
   border-bottom: 1px solid var(--line);
 }
 header.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 62px; }
-.brand { font-family: var(--script); color: var(--red); font-size: 26px; line-height: 1; font-weight: 400; }
+.brand { font-family: var(--display); color: var(--blue); font-size: 30px; line-height: .95; font-weight: 700; text-transform: uppercase; letter-spacing: .01em; }
 .brand small {
-  display: block; font-family: var(--sans); font-weight: 600; color: var(--blue); font-size: 11px;
+  display: block; font-family: var(--sans); font-weight: 600; color: var(--navy); font-size: 11px;
   letter-spacing: .14em; text-transform: uppercase; margin-top: 4px;
 }
 .link { background: none; border: 0; color: var(--navy); padding: 8px; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
