@@ -166,3 +166,4 @@ label { display: block; font-size: 12px; font-weight: 600; letter-spacing: .08em
   position: fixed; right: 16px; bottom: 88px; z-index: 6; box-shadow: 0 6px 16px rgba(25,59,87,.25);
   background: var(--red); border-color: var(--red);
 }
+body.admin .brand { color: var(--red); }
