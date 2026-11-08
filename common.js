@@ -71,8 +71,9 @@
     const draw = () => {
       root.innerHTML = `
         <div class="center-box">
-          <div class="brand" style="font-size:22px">Didi's Dogs<small>${esc(title)}</small></div>
-          <p class="sub" style="margin-top:12px">${esc(note || "")}</p>
+          <div class="wordmark"><div class="ro">Romanian</div><div class="estd">ESTD 1953</div><div class="dd">Didi's Dogs</div></div>
+          <h2 style="text-align:center;margin-top:20px">${esc(title)}</h2>
+          <p class="sub" style="text-align:center">${esc(note || "")}</p>
           <form id="authForm">
             ${mode === "up" ? `<label for="aName">Your name</label><input id="aName" autocomplete="name" required>` : ""}
             <label for="aEmail">Email</label>
@@ -84,7 +85,7 @@
           </form>
           <p class="muted" style="text-align:center;margin-top:16px">
             ${mode === "up" ? "Have an account?" : "New here?"}
-            <button class="link" id="swap" style="color:var(--text);font-weight:600">${mode === "up" ? "Sign in" : "Create account"}</button>
+            <button class="link" id="swap" style="color:var(--navy);font-weight:600">${mode === "up" ? "Sign in" : "Create account"}</button>
           </p>
         </div>`;
       root.querySelector("#swap").onclick = () => { mode = mode === "up" ? "in" : "up"; draw(); };
