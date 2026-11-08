@@ -3,7 +3,7 @@
   "short_name": "Didi's Crew",
   "id": "/crew.html",
   "start_url": "/crew.html",
-  "scope": "/",
+  "scope": "/crew",
   "display": "standalone",
   "background_color": "#f7f3e8",
   "theme_color": "#f7f3e8",
