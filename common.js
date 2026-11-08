@@ -71,7 +71,7 @@
     const draw = () => {
       root.innerHTML = `
         <div class="center-box">
-          <div class="wordmark"><div class="ro">Romanian</div><div class="estd">ESTD 1953</div><div class="dd">Didi's Dogs</div></div>
+          <div class="wordmark"><div class="ro arch">ROMANIAN</div><div class="estd">ESTD 1953</div><div class="dd arch">DIDI'S DOGS</div></div>
           <h2 style="text-align:center;margin-top:20px">${esc(title)}</h2>
           <p class="sub" style="text-align:center">${esc(note || "")}</p>
           <form id="authForm">
@@ -88,6 +88,7 @@
             <button class="link" id="swap" style="color:var(--navy);font-weight:600">${mode === "up" ? "Sign in" : "Create account"}</button>
           </p>
         </div>`;
+      if (window.ddArch) window.ddArch(root);
       root.querySelector("#swap").onclick = () => { mode = mode === "up" ? "in" : "up"; draw(); };
       root.querySelector("#authForm").onsubmit = async (e) => {
         e.preventDefault();

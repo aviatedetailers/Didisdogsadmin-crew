@@ -16,6 +16,7 @@
   --radius: 14px;
   --sans: "Barlow", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --display: "Barlow Condensed", "Arial Narrow", var(--sans);
+  --logo: "Bebas Neue", "Barlow Condensed", "Arial Narrow", sans-serif;
   --script: "Leckerli One", "Brush Script MT", cursive;
 }
 * { box-sizing: border-box; }
@@ -35,7 +36,7 @@ header.top {
   border-bottom: 1px solid var(--line);
 }
 header.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 62px; }
-.brand { font-family: var(--display); color: var(--blue); font-size: 30px; line-height: .95; font-weight: 700; text-transform: uppercase; letter-spacing: .01em; }
+.brand { font-family: var(--logo); color: var(--blue); font-size: 34px; line-height: .9; font-weight: 400; text-transform: uppercase; letter-spacing: .01em; }
 .brand small {
   display: block; font-family: var(--sans); font-weight: 600; color: var(--navy); font-size: 11px;
   letter-spacing: .14em; text-transform: uppercase; margin-top: 4px;
@@ -44,12 +45,9 @@ header.top .wrap { display: flex; align-items: center; justify-content: space-be
 
 /* Login / landing logo */
 .wordmark { text-align: center; margin-bottom: 8px; }
-.wordmark .ro {
-  font-family: var(--display); font-weight: 700; color: var(--blue); font-size: clamp(40px, 13vw, 64px); line-height: .9;
-  letter-spacing: .01em; text-transform: uppercase;
-}
+.wordmark .ro { font-family: var(--logo); font-weight: 400; color: var(--blue); font-size: clamp(52px, 18vw, 84px); line-height: .85; }
 .wordmark .estd { font-weight: 600; color: var(--blue); font-size: 12px; letter-spacing: .3em; }
-.wordmark .dd { font-family: var(--display); font-weight: 700; text-transform: uppercase; color: var(--red); font-size: clamp(32px, 10vw, 46px); line-height: 1; margin-top: 12px; letter-spacing: .01em; }
+.wordmark .dd { font-family: var(--logo); font-weight: 400; color: var(--red); font-size: clamp(40px, 13vw, 60px); line-height: .85; margin-top: 14px; }
 
 /* ---------- bottom tabs (like the site's beige nav) ---------- */
 nav.tabs {
@@ -167,3 +165,6 @@ label { display: block; font-size: 12px; font-weight: 600; letter-spacing: .08em
   background: var(--red); border-color: var(--red);
 }
 body.admin .brand { color: var(--red); }
+
+.arch { display: inline-block; padding-bottom: .2em; white-space: nowrap; max-width: 100%; }
+.arch span { display: inline-block; transform-origin: top center; }
