@@ -1,9 +1,9 @@
 {
   "name": "DD Crew",
   "short_name": "DD Crew",
-  "id": "/crew.html",
-  "start_url": "/crew.html",
-  "scope": "/crew",
+  "id": "/crew/",
+  "start_url": "/crew/",
+  "scope": "/crew/",
   "display": "standalone",
   "background_color": "#f7f3e8",
   "theme_color": "#f7f3e8",

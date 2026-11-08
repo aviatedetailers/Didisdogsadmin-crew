@@ -1,9 +1,9 @@
 {
   "name": "DD Admin",
   "short_name": "DD Admin",
-  "id": "/admin.html",
-  "start_url": "/admin.html",
-  "scope": "/admin",
+  "id": "/admin/",
+  "start_url": "/admin/",
+  "scope": "/admin/",
   "display": "standalone",
   "background_color": "#f7f3e8",
   "theme_color": "#f7f3e8",
