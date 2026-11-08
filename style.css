@@ -49,7 +49,7 @@ header.top .wrap { display: flex; align-items: center; justify-content: space-be
   letter-spacing: .01em; text-transform: uppercase;
 }
 .wordmark .estd { font-weight: 600; color: var(--blue); font-size: 12px; letter-spacing: .3em; }
-.wordmark .dd { font-family: var(--script); color: var(--red); font-size: 40px; line-height: 1; margin-top: 10px; transform: rotate(-4deg); display: inline-block; }
+.wordmark .dd { font-family: var(--display); font-weight: 700; text-transform: uppercase; color: var(--red); font-size: clamp(32px, 10vw, 46px); line-height: 1; margin-top: 12px; letter-spacing: .01em; }
 
 /* ---------- bottom tabs (like the site's beige nav) ---------- */
 nav.tabs {
