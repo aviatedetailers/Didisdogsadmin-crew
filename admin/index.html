@@ -398,10 +398,7 @@
         <div class="big">${money(totalOwed)}</div>
         <div class="muted small">${unpaidCount ? `${unpaidCount} worker${unpaidCount === 1 ? "" : "s"} unpaid` : "Everyone is paid"}</div>
       </div>
-      <div class="row" style="gap:10px;margin-bottom:12px">
-        <div class="card grow" style="margin:0"><div class="muted small">All-time hours</div><div class="big" style="font-size:30px">${num(teamHrs)}</div></div>
-        <div class="card grow" style="margin:0"><div class="muted small">All-time paid</div><div class="big" style="font-size:30px">${money(teamPaid)}</div></div>
-      </div>
+
       ${pending.length ? `<h2>Waiting for approval</h2><div class="list">${pending.map((p) => `
         <div class="item" style="flex-wrap:wrap">
           <div class="grow"><div class="name">${esc(p.name)}</div><div class="meta">${esc(p.email || "")}</div></div>
@@ -416,7 +413,7 @@
         return `<button class="item tap" style="width:100%" data-person="${p.id}">
           <span class="status ${red ? "red" : "green"}" aria-label="${red ? "Unpaid" : "Paid"}"></span>
           <div class="grow"><div class="name">${esc(p.name)}${p.role === "admin" ? ` <span class="tag plain">Owner</span>` : ""}</div>
-            <div class="meta">${red ? `${num(u.hours)} hrs unpaid` : "All paid"} · ${num(S.shifts.filter((x) => x.worker_id === p.id).reduce((a, x) => a + Number(x.hours), 0))} hrs all-time</div>
+            <div class="meta"><b style="color:var(--navy)">${num(S.shifts.filter((x) => x.worker_id === p.id).reduce((a, x) => a + Number(x.hours), 0))} hrs all-time</b>${red ? ` · ${num(u.hours)} unpaid` : ""}</div>
             ${open ? `<div class="onclock">On the clock since ${fmtTime(open.start_time)}</div>` : ""}</div>
           <div style="text-align:right">
             ${red ? `<div class="name">${money(u.owed)}</div><span class="tag low">Unpaid</span>` : `<span class="tag paid">Paid</span>`}
