@@ -120,6 +120,13 @@
         ${owed > 0 ? `<div class="muted">${money(owed)}</div>` : ""}
       </div>
 
+      <h2>Get paid by Zelle</h2>
+      <div class="card">
+        <label style="margin-top:0">Your Zelle phone or email</label>
+        <div class="row"><input id="zl" class="grow" value="${esc(me.zelle || "")}" placeholder="Number or email you use for Zelle">
+        <button class="btn sm" id="zlSave">Save</button></div>
+      </div>
+
       <h2>My shifts</h2>
       ${shifts.length ? `<div class="list">${shifts.map((s) => `
         <button class="item tap" style="width:100%" data-id="${s.id}" ${s.paid ? "disabled" : ""}>
@@ -201,6 +208,12 @@
       if (error) { ev.target.disabled = false; return toast(friendlyError(error)); }
       shifts.unshift(data); sortShifts();
       render(); toast(`Saved ${num(data.hours)} hours`);
+    };
+    app.querySelector("#zlSave").onclick = async () => {
+      const zelle = DD.cleanZelle(app.querySelector("#zl").value) || null;
+      const { data, error } = await sb.from("profiles").update({ zelle }).eq("id", me.id).select().single();
+      if (error) return toast(friendlyError(error));
+      me = data; app.querySelector("#zl").value = me.zelle || ""; toast("Zelle saved");
     };
     app.querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => fix(shifts.find((s) => s.id == b.dataset.id))));
   }

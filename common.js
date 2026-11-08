@@ -39,6 +39,24 @@
     const h = Math.floor(mins / 60), m = mins % 60;
     return h ? `${h}h ${m}m` : `${m}m`;
   }
+  // Clean a Zelle phone/email: phones become 10 digits, emails lowercase.
+  function cleanZelle(v) {
+    v = String(v || "").trim();
+    if (!v) return "";
+    if (v.includes("@")) return v.toLowerCase();
+    let d = v.replace(/\D/g, "");
+    if (d.length === 11 && d.startsWith("1")) d = d.slice(1);
+    return d;
+  }
+  // Same link a Zelle QR code holds: opens Zelle to pay this person.
+  function zelleLink(name, zelle) {
+    const token = cleanZelle(zelle);
+    if (!token) return "";
+    const first = (String(name || "").trim().split(/\s+/)[0] || "").toUpperCase();
+    const json = JSON.stringify({ name: first, token, action: "payment" });
+    const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(json)));
+    return "https://enroll.zellepay.com/qr-codes?data=" + b64;
+  }
   function mapsLink(place) {
     return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(place);
   }
@@ -148,5 +166,5 @@
     return data;
   }
 
-  window.DD = { sb, ready, esc, money, num, today, fmtDate, fmtTime, calcHours, nowTime, minutesSince, fmtDuration, mapsLink, toast, sheet, friendlyError, authScreen, notConnected, loadMe };
+  window.DD = { sb, ready, esc, money, num, today, fmtDate, fmtTime, calcHours, nowTime, minutesSince, fmtDuration, mapsLink, cleanZelle, zelleLink, toast, sheet, friendlyError, authScreen, notConnected, loadMe };
 })();

@@ -189,3 +189,4 @@ details.manual summary { cursor: pointer; font-weight: 600; color: var(--navy); 
 .checks input { width: 20px; height: 20px; accent-color: var(--navy); }
 .onclock { margin-top: 4px; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--ok); }
 .onclock::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); margin-right: 6px; vertical-align: 1px; }
+.btn.zelle { background: #6d1ed4; border-color: #6d1ed4; }

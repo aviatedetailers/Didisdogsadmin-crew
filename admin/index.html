@@ -466,7 +466,8 @@
     sheet(`
       <div class="row" style="align-items:flex-start">
         <div class="grow"><h3>${esc(p.name)}</h3>
-          <p class="muted" style="margin:0">${esc(p.phone || p.email || "")}${Number(p.pay_rate) ? ` · ${money(p.pay_rate)}/hr` : " · no rate set"}</p></div>
+          <p class="muted" style="margin:0">${esc(p.phone || p.email || "")}${Number(p.pay_rate) ? ` · ${money(p.pay_rate)}/hr` : " · no rate set"}</p>
+          ${p.zelle ? `<p class="muted small" style="margin:2px 0 0">Zelle: ${esc(p.zelle)}</p>` : ""}</div>
         <button class="btn light sm" id="info">Edit info</button>
       </div>
       <div class="card" style="margin-top:16px;display:flex;align-items:center;gap:12px">
@@ -477,6 +478,12 @@
         </div>
         ${red ? `<button class="btn sm" id="pay" style="background:var(--ok);border-color:var(--ok)">Mark paid</button>` : ""}
       </div>
+      ${red ? (p.zelle ? `<div class="row" style="margin:-4px 0 12px">
+          <a class="btn sm grow zelle" href="${esc(DD.zelleLink(p.name, p.zelle))}" target="_blank" rel="noopener">Pay with Zelle</a>
+          <button class="btn light sm grow" id="copyAmt">Copy ${money(u.owed)}</button>
+        </div>
+        <p class="muted small" style="margin:-4px 0 12px">Pay in Zelle, then come back and tap Mark paid.</p>`
+        : `<p class="muted small" style="margin:-4px 0 12px">Add their Zelle in <b>Edit info</b> to get a Pay with Zelle button.</p>`) : ""}
       <div class="row" style="gap:10px">
         <div class="card grow" style="margin:0"><div class="muted small">All-time hours</div><div class="big" style="font-size:30px">${num(allHrs)}</div></div>
         <div class="card grow" style="margin:0"><div class="muted small">All-time paid</div><div class="big" style="font-size:30px">${money(allPaid)}</div></div>
@@ -494,6 +501,11 @@
       el.querySelector("#close").onclick = close;
       el.querySelector("#info").onclick = () => { close(); editPerson(p); };
       el.querySelector("#add").onclick = () => { close(); editShift(null, p.id); };
+      const copyAmt = el.querySelector("#copyAmt");
+      if (copyAmt) copyAmt.onclick = async () => {
+        const amt = (Math.round(u.owed * 100) / 100).toFixed(2);
+        try { await navigator.clipboard.writeText(amt); toast(`Copied ${amt}`); } catch (e) { prompt("Amount:", amt); }
+      };
       const pay = el.querySelector("#pay");
       if (pay) pay.onclick = async () => { if (await payWorker(p.id, u)) { close(); workerSheet(p); } };
       el.querySelectorAll("[data-shift]").forEach((b) => (b.onclick = () => { close(); editShift(S.shifts.find((s) => s.id == b.dataset.shift)); }));
@@ -587,6 +599,7 @@
       <p class="muted" style="margin:0">${esc(p.email || "")}</p>
       <label>Name</label><input id="pN" value="${esc(p.name)}">
       <label>Phone</label><input id="pPh" type="tel" value="${esc(p.phone || "")}">
+      <label>Zelle (phone or email)</label><input id="pZ" value="${esc(p.zelle || "")}" placeholder="Number or email they use for Zelle">
       <label>Pay per hour ($)</label><input id="pR" type="number" inputmode="decimal" min="0" step="0.01" value="${num(p.pay_rate)}">
       <p class="muted small" style="margin:6px 0 0">Changing this also updates their unpaid hours. Hours already paid stay the same.</p>
       <label>Access</label>
@@ -602,6 +615,7 @@
         const row = {
           name: el.querySelector("#pN").value.trim() || p.name,
           phone: el.querySelector("#pPh").value.trim() || null,
+          zelle: DD.cleanZelle(el.querySelector("#pZ").value) || null,
           pay_rate: Math.max(0, Number(el.querySelector("#pR").value) || 0),
           role: el.querySelector("#pRole").value
         };
