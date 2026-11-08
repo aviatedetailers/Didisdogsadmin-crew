@@ -311,12 +311,19 @@
           <div class="grow"><div class="name">${esc(p.name)}</div><div class="meta">${esc(p.email || "")}</div></div>
         </button>`).join("")}</div>` : ""}
       <div class="card" style="margin-top:20px">
-        <div class="muted small">Crew page link (workers sign up and log hours here)</div>
-        <div style="word-break:break-all;margin:4px 0 12px">${esc(crewLink())}</div>
-        <button class="btn light sm" id="shareCrew">Send to a worker</button>
+        <div class="name" style="font-weight:700">Crew page</div>
+        <div class="muted small" style="margin:2px 0 12px">Workers use it to sign up and log their hours.</div>
+        <div class="row">
+          <button class="btn sm grow" id="shareCrew">Send crew link</button>
+          <button class="btn light sm grow" id="copyCrew">Copy link</button>
+        </div>
       </div>
       ${active.length ? `<button class="btn fab" id="addShift">+ Add hours</button>` : ""}`;
 
+    view().querySelector("#copyCrew").onclick = async () => {
+      try { await navigator.clipboard.writeText(crewLink()); toast("Link copied"); }
+      catch (e) { prompt("Copy this link:", crewLink()); }
+    };
     view().querySelector("#shareCrew").onclick = async () => {
       const text = `Didi's Dogs crew page. Make an account and log your hours here: ${crewLink()}`;
       try {
