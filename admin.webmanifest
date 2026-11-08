@@ -1,6 +1,6 @@
 {
   "name": "Didi's Dogs Admin",
-  "short_name": "DD Admin",
+  "short_name": "Didi's Admin",
   "id": "/admin.html",
   "start_url": "/admin.html",
   "scope": "/",
