@@ -25,24 +25,27 @@
 (() => {
   const { sb, esc, money, num, today, fmtDate, fmtTime, calcHours, toast, sheet, friendlyError } = DD;
   const app = document.getElementById("app");
-  let me = null, shifts = [];
+  let me = null, shifts = [], events = [], timer = null;
 
   async function start() {
     if (!DD.ready) return DD.notConnected(app);
     const { data: { session } } = await sb.auth.getSession();
     if (!session) {
-      return DD.authScreen(app, { title: "Crew", note: "Sign in to log your hours. New? Create an account, then wait for approval.", onDone: start });
+      return DD.authScreen(app, { title: "Crew", note: "Sign in to clock in and see your schedule. New? Create an account, then wait for approval.", onDone: start });
     }
     try { me = await DD.loadMe(); } catch (e) { return toast(friendlyError(e)); }
     if (!me || me.role === "pending" || me.role === "removed") return waiting();
-    const { data, error } = await sb.from("shifts").select("*").eq("worker_id", me.id)
-      .order("work_date", { ascending: false }).order("start_time", { ascending: false });
-    if (error) toast(friendlyError(error));
-    shifts = data || [];
+    const [a, b] = await Promise.all([
+      sb.from("shifts").select("*").eq("worker_id", me.id)
+        .order("work_date", { ascending: false }).order("start_time", { ascending: false }),
+      sb.from("events").select("*").gte("event_date", today()).order("event_date").order("start_time")
+    ]);
+    if (a.error || b.error) toast(friendlyError(a.error || b.error));
+    shifts = a.data || []; events = b.data || [];
     render();
   }
 
-  async function signOut() { await sb.auth.signOut(); start(); }
+  async function signOut() { clearInterval(timer); await sb.auth.signOut(); start(); }
 
   function header() {
     return `<header class="top"><div class="wrap">
@@ -61,24 +64,55 @@
     if (again) again.onclick = start;
   }
 
+  const openShift = () => shifts.find((s) => !s.end_time);
+  const sortShifts = () => shifts.sort((a, b) => b.work_date.localeCompare(a.work_date) || b.start_time.localeCompare(a.start_time));
+  const timeRange = (e) => e.start_time ? fmtTime(e.start_time) + (e.end_time ? "–" + fmtTime(e.end_time) : "") : "Time TBD";
+
+  function clockCard() {
+    const o = openShift();
+    if (o) {
+      const mins = DD.minutesSince(o.work_date, o.start_time);
+      return `<div class="card clock on">
+        <div class="row"><span class="status green pulse"></span><div class="name grow">On the clock</div></div>
+        <div class="big" id="elapsed" style="margin-top:6px">${DD.fmtDuration(mins)}</div>
+        <div class="muted">Since ${fmtTime(o.start_time)}${o.work_date !== today() ? " on " + fmtDate(o.work_date) : ""}${o.note ? " · " + esc(o.note) : ""}</div>
+        ${mins > 16 * 60 ? `<p class="small" style="color:var(--red);margin:8px 0 0">Forgot to clock out? Tap Clock out, then fix the end time in My shifts.</p>` : ""}
+        <button class="btn full big-btn" id="clockOut" style="margin-top:16px;background:var(--red);border-color:var(--red)">Clock out</button>
+      </div>`;
+    }
+    const todays = events.filter((e) => e.event_date === today());
+    return `<div class="card clock">
+      <div class="name">Ready to work?</div>
+      <div class="muted small" style="margin-bottom:12px">Tap when you start. Tap again when you finish.</div>
+      ${todays.length ? `<label style="margin-top:0">Event</label>
+        <select id="ev">${todays.map((e) => `<option value="${e.id}">${esc(e.title)}</option>`).join("")}<option value="">Other / no event</option></select>`
+        : `<label style="margin-top:0">Event / note (optional)</label><input id="cn" placeholder="e.g. Cohen wedding">`}
+      <button class="btn full big-btn" id="clockIn" style="margin-top:14px">Clock in</button>
+    </div>`;
+  }
+
   function render() {
-    const unpaid = shifts.filter((s) => !s.paid);
+    clearInterval(timer);
+    const done = shifts.filter((s) => s.end_time);
+    const unpaid = done.filter((s) => !s.paid);
     const hrs = unpaid.reduce((a, s) => a + Number(s.hours), 0);
     const owed = unpaid.reduce((a, s) => a + Number(s.hours) * Number(s.rate), 0);
     app.innerHTML = `${header()}<main class="wrap">
-      <h1>Log hours</h1>
-      <p class="sub">Add each shift you work.</p>
-      <div class="card">
-        <label style="margin-top:0">Date</label><input id="d" type="date" value="${today()}">
-        <div class="row">
-          <div class="grow"><label>Start</label><input id="s" type="time"></div>
-          <div class="grow"><label>End</label><input id="e" type="time"></div>
-        </div>
-        <p class="muted small" id="h" style="margin:8px 0 0"></p>
-        <label>Event / note (optional)</label><input id="n" placeholder="e.g. Cohen wedding">
-        <div style="height:16px"></div>
-        <button class="btn full" id="save">Save hours</button>
-      </div>
+      <h1>Hi, ${esc((me.name || "").split(" ")[0])}</h1>
+      <p class="sub">${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
+      ${clockCard()}
+
+      <h2>My schedule</h2>
+      ${events.length ? `<div class="list">${events.map((e) => `
+        <div class="item" style="align-items:flex-start">
+          <div class="datebox"><span>${new Date(e.event_date + "T12:00").toLocaleDateString("en-US", { month: "short" })}</span><b>${Number(e.event_date.slice(8))}</b></div>
+          <div class="grow">
+            <div class="name">${esc(e.title)}${e.event_date === today() ? ` <span class="tag low">Today</span>` : ""}</div>
+            <div class="meta">${fmtDate(e.event_date)} · ${timeRange(e)}</div>
+            ${e.location ? `<a class="maplink" href="${DD.mapsLink(e.location)}" target="_blank" rel="noopener">${esc(e.location)}</a>` : ""}
+            ${e.notes ? `<div class="meta">${esc(e.notes)}</div>` : ""}
+          </div>
+        </div>`).join("")}</div>` : `<div class="empty">No upcoming events yet.</div>`}
 
       <h2>Not paid yet</h2>
       <div class="card">
@@ -91,14 +125,63 @@
         <button class="item tap" style="width:100%" data-id="${s.id}" ${s.paid ? "disabled" : ""}>
           <div class="grow">
             <div class="name">${fmtDate(s.work_date)}</div>
-            <div class="meta">${fmtTime(s.start_time)}–${fmtTime(s.end_time)}${s.note ? " · " + esc(s.note) : ""}</div>
+            <div class="meta">${fmtTime(s.start_time)}–${s.end_time ? fmtTime(s.end_time) : "now"}${s.note ? " · " + esc(s.note) : ""}</div>
           </div>
-          <div style="text-align:right"><div class="name">${num(s.hours)} h</div>
-            ${s.paid ? `<span class="tag paid">Paid</span>` : `<span class="muted small">Tap to fix</span>`}</div>
+          <div style="text-align:right">
+            ${!s.end_time ? `<span class="tag paid">On the clock</span>` : `<div class="name">${num(s.hours)} h</div>
+            ${s.paid ? `<span class="tag paid">Paid</span>` : `<span class="muted small">Tap to fix</span>`}`}</div>
         </button>`).join("")}</div>` : `<div class="empty">No shifts yet.</div>`}
+
+      <details class="manual">
+        <summary>Forgot to clock in? Add hours by hand</summary>
+        <div class="card" style="margin-top:10px">
+          <label style="margin-top:0">Date</label><input id="d" type="date" value="${today()}">
+          <div class="row">
+            <div class="grow"><label>Start</label><input id="s" type="time"></div>
+            <div class="grow"><label>End</label><input id="e" type="time"></div>
+          </div>
+          <p class="muted small" id="h" style="margin:8px 0 0"></p>
+          <label>Event / note (optional)</label><input id="n" placeholder="e.g. Cohen wedding">
+          <div style="height:16px"></div>
+          <button class="btn full" id="save">Save hours</button>
+        </div>
+      </details>
     </main>`;
 
     app.querySelector("#out").onclick = signOut;
+
+    const o = openShift();
+    if (o) {
+      timer = setInterval(() => {
+        const el = document.getElementById("elapsed");
+        if (el) el.textContent = DD.fmtDuration(DD.minutesSince(o.work_date, o.start_time));
+      }, 20000);
+      app.querySelector("#clockOut").onclick = async (ev) => {
+        ev.target.disabled = true;
+        const { data, error } = await sb.from("shifts").update({ end_time: DD.nowTime() }).eq("id", o.id).select().single();
+        if (error) { ev.target.disabled = false; return toast(friendlyError(error)); }
+        Object.assign(o, data); render(); toast(`Clocked out · ${num(data.hours)} hours`);
+      };
+    } else {
+      app.querySelector("#clockIn").onclick = async (ev) => {
+        ev.target.disabled = true;
+        const row = { work_date: today(), start_time: DD.nowTime() };
+        const evSel = app.querySelector("#ev");
+        if (evSel) {
+          const e = events.find((x) => String(x.id) === evSel.value);
+          if (e) { row.event_id = e.id; row.note = e.title; }
+        } else {
+          row.note = (app.querySelector("#cn").value || "").trim() || null;
+        }
+        const { data, error } = await sb.from("shifts").insert(row).select().single();
+        if (error) {
+          ev.target.disabled = false;
+          return toast(/one_open/.test(error.message || "") ? "You're already clocked in." : friendlyError(error));
+        }
+        shifts.unshift(data); sortShifts(); render(); toast(`Clocked in at ${fmtTime(data.start_time)}`);
+      };
+    }
+
     const upd = () => {
       const h = calcHours(app.querySelector("#s").value, app.querySelector("#e").value);
       app.querySelector("#h").textContent = h ? `${num(h)} hours` : "";
@@ -116,8 +199,7 @@
       ev.target.disabled = true;
       const { data, error } = await sb.from("shifts").insert(row).select().single();
       if (error) { ev.target.disabled = false; return toast(friendlyError(error)); }
-      shifts.unshift(data);
-      shifts.sort((a, b) => b.work_date.localeCompare(a.work_date) || b.start_time.localeCompare(a.start_time));
+      shifts.unshift(data); sortShifts();
       render(); toast(`Saved ${num(data.hours)} hours`);
     };
     app.querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => fix(shifts.find((s) => s.id == b.dataset.id))));
@@ -138,7 +220,8 @@
       el.querySelector("#ok").onclick = async () => {
         const row = { work_date: el.querySelector("#fd").value, start_time: el.querySelector("#fs").value,
           end_time: el.querySelector("#fe").value, note: el.querySelector("#fn").value.trim() || null };
-        if (!row.work_date || !row.start_time || !row.end_time) return toast("Add the date, start and end.");
+        if (!row.work_date || !row.start_time) return toast("Add the date and start time.");
+        if (!row.end_time) { if (s.end_time) return toast("Add the end time."); row.end_time = null; }
         if (row.start_time === row.end_time) return toast("Start and end can't be the same.");
         const { data, error } = await sb.from("shifts").update(row).eq("id", s.id).select().single();
         if (error) return toast(friendlyError(error));

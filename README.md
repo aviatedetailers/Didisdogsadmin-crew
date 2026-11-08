@@ -8,3 +8,5 @@ Inventory and crew hours for Didi's Dogs by Romanian.
 - `config.js` – Supabase project URL + publishable (anon) key
 
 The first account created becomes the owner. Everyone after that is approved by the owner on the Workers tab.
+
+Database changes after the first setup live in `migrations/` (run in order).

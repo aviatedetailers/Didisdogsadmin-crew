@@ -26,6 +26,22 @@
     h = h % 12 || 12;
     return `${h}:${String(m).padStart(2, "0")} ${ap}`;
   }
+  function nowTime() {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  }
+  // Minutes since a shift started (date + time in the phone's local time)
+  function minutesSince(date, time) {
+    const t = new Date(`${date}T${(time || "00:00").slice(0, 5)}:00`);
+    return Math.max(0, Math.floor((Date.now() - t.getTime()) / 60000));
+  }
+  function fmtDuration(mins) {
+    const h = Math.floor(mins / 60), m = mins % 60;
+    return h ? `${h}h ${m}m` : `${m}m`;
+  }
+  function mapsLink(place) {
+    return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(place);
+  }
   function calcHours(start, end) {
     if (!start || !end || start === end) return 0;
     const toMin = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
@@ -132,5 +148,5 @@
     return data;
   }
 
-  window.DD = { sb, ready, esc, money, num, today, fmtDate, fmtTime, calcHours, toast, sheet, friendlyError, authScreen, notConnected, loadMe };
+  window.DD = { sb, ready, esc, money, num, today, fmtDate, fmtTime, calcHours, nowTime, minutesSince, fmtDuration, mapsLink, toast, sheet, friendlyError, authScreen, notConnected, loadMe };
 })();
