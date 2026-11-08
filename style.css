@@ -126,3 +126,7 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 6px
 .switch { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; }
 .switch input { width: 22px; height: 22px; }
 .fab { position: fixed; right: 16px; bottom: 84px; z-index: 6; border-radius: 999px; padding: 14px 18px; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
+.status { flex: none; width: 14px; height: 14px; border-radius: 50%; }
+.status.red { background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.status.green { background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); }
+#view { padding-bottom: 72px; }
