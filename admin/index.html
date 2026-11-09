@@ -27,9 +27,10 @@
   const app = document.getElementById("app");
   const CATS = ["Meat","Buns","Toppings","Sauces","Sides","Seasonings","Drinks","Cooking","Serving","Cleaning","Event","Other"];
 
-  const S = { me: null, tab: "inv", items: [], shifts: [], people: [], events: [], assigns: [], cat: "All", q: "", evView: "up" };
+  const S = { me: null, tab: "inv", items: [], shifts: [], people: [], events: [], assigns: [], expenses: [], cat: "All", q: "", evView: "up", exRange: "month" };
 
   const icons = {
+    money: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v5M18 9.5v5"/></svg>',
     events: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
     inv: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>',
     buy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6L5 3H2"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/></svg>',
@@ -65,17 +66,18 @@
   async function signOut() { await sb.auth.signOut(); S.me = null; start(); }
 
   async function loadAll() {
-    const [a, b, c, d, e] = await Promise.all([
+    const [a, b, c, d, e, x] = await Promise.all([
       sb.from("inventory_items").select("*").order("category").order("name"),
       sb.from("shifts").select("*").order("work_date", { ascending: false }).order("start_time", { ascending: false }),
       sb.from("profiles").select("*").order("name"),
       sb.from("events").select("*").order("event_date").order("start_time"),
-      sb.from("event_workers").select("*")
+      sb.from("event_workers").select("*"),
+      sb.from("expenses").select("*").order("spent_on", { ascending: false }).order("id", { ascending: false })
     ]);
-    const err = a.error || b.error || c.error || d.error || e.error;
+    const err = a.error || b.error || c.error || d.error || e.error || x.error;
     if (err) toast(friendlyError(err));
     S.items = a.data || []; S.shifts = b.data || []; S.people = c.data || [];
-    S.events = d.data || []; S.assigns = e.data || [];
+    S.events = d.data || []; S.assigns = e.data || []; S.expenses = x.data || [];
   }
 
   // ---------- shell ----------
@@ -84,7 +86,7 @@
     const pendCount = S.people.filter((p) => p.role === "pending").length
       + S.people.filter((p) => (p.role === "crew" || p.role === "admin") && S.shifts.some((x) => x.worker_id === p.id && !x.paid && x.end_time)).length;
     const todayEvents = S.events.filter((e) => e.event_date === today()).length;
-    const tabs = [["inv","Inventory"],["buy","Buy Soon"],["events","Events"],["team","Workers"]];
+    const tabs = [["inv","Inventory"],["buy","Buy Soon"],["events","Events"],["team","Workers"],["money","Expenses"]];
     app.innerHTML = `
       <header class="top"><div class="wrap">
         <div class="brand">Didi's Dogs<small>Admin</small></div>
@@ -99,8 +101,8 @@
       </div></nav>`;
     app.querySelector("#out").onclick = signOut;
     app.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => { S.tab = b.dataset.tab; render(); window.scrollTo(0, 0); }));
-    if (!["inv","buy","events","team"].includes(S.tab)) S.tab = "inv";
-    ({ inv: viewInventory, buy: viewBuy, events: viewEvents, team: viewTeam })[S.tab]();
+    if (!["inv","buy","events","team","money"].includes(S.tab)) S.tab = "inv";
+    ({ inv: viewInventory, buy: viewBuy, events: viewEvents, team: viewTeam, money: viewExpenses })[S.tab]();
   }
   const view = () => document.getElementById("view");
 
@@ -313,6 +315,8 @@
       </div>
       <label>Address</label><input id="eL" value="${esc(e.location || "")}" placeholder="Street, city">
       <label>Notes for the crew</label><textarea id="eN" rows="2" placeholder="Guest count, parking, arrive early…">${esc(e.notes || "")}</textarea>
+      ${!isNew && S.expenses.some((x) => x.event_id === e.id) ? `<div class="card" style="margin-top:14px"><div class="muted small">Spent on this event</div>
+        <div class="name" style="font-size:20px">${money(S.expenses.filter((x) => x.event_id === e.id).reduce((a, x) => a + Number(x.amount), 0))}</div></div>` : ""}
       <label>Who's working</label>
       ${workers.length ? `<div class="list checks">${workers.map((w) => `
         <label><input type="checkbox" value="${w.id}" ${picked.has(w.id) ? "checked" : ""}> ${esc(w.name)}</label>`).join("")}</div>`
@@ -364,6 +368,119 @@
         if (error) return toast(friendlyError(error));
         S.events = S.events.filter((x) => x.id !== e.id);
         S.assigns = S.assigns.filter((a) => a.event_id !== e.id);
+        close(); render(); toast("Deleted");
+      };
+    });
+  }
+
+  // ---------- expenses ----------
+  const EX_CATS = ["Food & supplies", "Propane", "Gas / fuel", "Equipment", "Repairs", "Permits & insurance", "Marketing", "Other"];
+  function monthKey(d) { return d.slice(0, 7); }
+  function monthLabel(k) { const [y, m] = k.split("-").map(Number); return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" }); }
+  function exRange() {
+    const now = today(), thisM = monthKey(now);
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1);
+    const lastM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    if (S.exRange === "month") return { test: (day) => monthKey(day) === thisM, label: monthLabel(thisM) };
+    if (S.exRange === "last") return { test: (day) => monthKey(day) === lastM, label: monthLabel(lastM) };
+    return { test: () => true, label: "All time" };
+  }
+  const shiftPaidDay = (s) => (s.paid_at ? String(s.paid_at).slice(0, 10) : s.work_date);
+
+  function viewExpenses() {
+    const r = exRange();
+    const list = S.expenses.filter((e) => r.test(e.spent_on));
+    const spent = list.reduce((a, e) => a + Number(e.amount), 0);
+    const pay = S.shifts.filter((s) => s.paid && s.end_time && r.test(shiftPaidDay(s))).reduce((a, s) => a + Number(s.hours) * Number(s.rate), 0);
+    const byCat = {};
+    list.forEach((e) => (byCat[e.category] = (byCat[e.category] || 0) + Number(e.amount)));
+    const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+    const maxCat = cats.length ? cats[0][1] : 1;
+    const groups = {};
+    list.forEach((e) => (groups[monthKey(e.spent_on)] = groups[monthKey(e.spent_on)] || []).push(e));
+    const evName = (id) => (S.events.find((e) => e.id === id) || {}).title;
+
+    view().innerHTML = `
+      <h1>Expenses</h1>
+      <p class="sub">Everything spent on the truck.</p>
+      <div class="chips">
+        <button class="chip ${S.exRange === "month" ? "on" : ""}" data-r="month">This month</button>
+        <button class="chip ${S.exRange === "last" ? "on" : ""}" data-r="last">Last month</button>
+        <button class="chip ${S.exRange === "all" ? "on" : ""}" data-r="all">All time</button>
+      </div>
+      <div class="card">
+        <div class="muted">${esc(r.label)} · total costs</div>
+        <div class="big">${money(spent + pay)}</div>
+        <div class="muted small">${money(spent)} expenses + ${money(pay)} worker pay</div>
+      </div>
+      ${cats.length ? `<h2>By category</h2><div class="list">${cats.map(([c, v]) => `
+        <div class="item" style="display:block">
+          <div class="row"><div class="name grow">${esc(c)}</div><div class="name">${money(v)}</div></div>
+          <div class="bar"><span style="width:${Math.max(3, Math.round((v / maxCat) * 100))}%"></span></div>
+        </div>`).join("")}</div>` : ""}
+      <h2>Expenses</h2>
+      ${list.length ? Object.keys(groups).map((k) => `
+        ${S.exRange === "all" ? `<div class="muted small" style="margin:14px 0 6px;font-weight:600">${esc(monthLabel(k))}</div>` : ""}
+        <div class="list">${groups[k].map((e) => `
+          <button class="item tap" style="width:100%" data-ex="${e.id}">
+            <div class="grow">
+              <div class="name">${esc(e.description || e.category)}</div>
+              <div class="meta">${fmtDate(e.spent_on)} · ${esc(e.category)}${e.event_id && evName(e.event_id) ? " · " + esc(evName(e.event_id)) : ""}</div>
+            </div>
+            <div class="name">${money(e.amount)}</div>
+          </button>`).join("")}</div>`).join("")
+        : `<div class="empty">No expenses ${S.exRange === "all" ? "yet" : "in " + esc(r.label)}. Tap + Add expense.</div>`}
+      <button class="btn fab" id="addEx">+ Add expense</button>`;
+
+    view().querySelectorAll("[data-r]").forEach((b) => (b.onclick = () => { S.exRange = b.dataset.r; viewExpenses(); }));
+    view().querySelectorAll("[data-ex]").forEach((b) => (b.onclick = () => editExpense(S.expenses.find((e) => e.id == b.dataset.ex))));
+    view().querySelector("#addEx").onclick = () => editExpense(null);
+  }
+
+  function editExpense(x) {
+    const isNew = !x;
+    x = x || { spent_on: today(), amount: "", category: EX_CATS[0], description: "", event_id: null };
+    const cats = [...new Set([...EX_CATS, x.category])];
+    const evs = S.events.slice().sort((a, b) => b.event_date.localeCompare(a.event_date)).slice(0, 40);
+    sheet(`
+      <h3>${isNew ? "Add expense" : "Edit expense"}</h3>
+      <label>Amount ($)</label><input id="xA" type="number" inputmode="decimal" min="0" step="0.01" value="${x.amount === "" ? "" : num(x.amount)}" placeholder="0.00">
+      <label>What was it?</label><input id="xD" value="${esc(x.description || "")}" placeholder="e.g. Hot dogs and buns from Costco">
+      <div class="row">
+        <div class="grow"><label>Category</label><select id="xC">${cats.map((c) => `<option ${c === x.category ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></div>
+        <div class="grow"><label>Date</label><input id="xT" type="date" value="${x.spent_on}"></div>
+      </div>
+      <label>For an event? (optional)</label>
+      <select id="xE"><option value="">No event</option>${evs.map((e) => `<option value="${e.id}" ${e.id === x.event_id ? "selected" : ""}>${esc(e.title)} · ${fmtDate(e.event_date)}</option>`).join("")}</select>
+      <div class="actions">
+        ${isNew ? "" : `<button class="btn danger" id="del">Delete</button>`}
+        <button class="btn" id="save">Save</button>
+      </div>`, (el, close) => {
+      if (isNew) el.querySelector("#xA").focus();
+      el.querySelector("#save").onclick = async (ev) => {
+        const row = {
+          amount: Math.round((Number(el.querySelector("#xA").value) || 0) * 100) / 100,
+          description: el.querySelector("#xD").value.trim() || null,
+          category: el.querySelector("#xC").value,
+          spent_on: el.querySelector("#xT").value || today(),
+          event_id: el.querySelector("#xE").value ? Number(el.querySelector("#xE").value) : null
+        };
+        if (!(row.amount > 0)) return toast("Enter the amount.");
+        ev.target.disabled = true;
+        const res = isNew
+          ? await sb.from("expenses").insert(row).select().single()
+          : await sb.from("expenses").update(row).eq("id", x.id).select().single();
+        if (res.error) { ev.target.disabled = false; return toast(friendlyError(res.error)); }
+        if (isNew) S.expenses.unshift(res.data); else Object.assign(x, res.data);
+        S.expenses.sort((a, b) => b.spent_on.localeCompare(a.spent_on) || b.id - a.id);
+        close(); render(); toast("Saved");
+      };
+      const del = el.querySelector("#del");
+      if (del) del.onclick = async () => {
+        if (!confirm("Delete this expense?")) return;
+        const { error } = await sb.from("expenses").delete().eq("id", x.id);
+        if (error) return toast(friendlyError(error));
+        S.expenses = S.expenses.filter((e) => e.id !== x.id);
         close(); render(); toast("Deleted");
       };
     });
