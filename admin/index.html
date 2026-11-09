@@ -72,7 +72,7 @@
       sb.from("profiles").select("*").order("name"),
       sb.from("events").select("*").order("event_date").order("start_time"),
       sb.from("event_workers").select("*"),
-      sb.from("expenses").select("*").order("spent_on", { ascending: false }).order("id", { ascending: false })
+      sb.from("expenses").select("*").order("id", { ascending: false })
     ]);
     const err = a.error || b.error || c.error || d.error || e.error || x.error;
     if (err) toast(friendlyError(err));
@@ -388,51 +388,27 @@
   const shiftPaidDay = (s) => (s.paid_at ? String(s.paid_at).slice(0, 10) : s.work_date);
 
   function viewExpenses() {
-    const r = exRange();
-    const list = S.expenses.filter((e) => r.test(e.spent_on));
-    const spent = list.reduce((a, e) => a + Number(e.amount), 0);
-    const pay = S.shifts.filter((s) => s.paid && s.end_time && r.test(shiftPaidDay(s))).reduce((a, s) => a + Number(s.hours) * Number(s.rate), 0);
-    const byCat = {};
-    list.forEach((e) => (byCat[e.category] = (byCat[e.category] || 0) + Number(e.amount)));
-    const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
-    const maxCat = cats.length ? cats[0][1] : 1;
-    const groups = {};
-    list.forEach((e) => (groups[monthKey(e.spent_on)] = groups[monthKey(e.spent_on)] || []).push(e));
+    const list = S.expenses;
+    const total = list.reduce((a, e) => a + Number(e.amount), 0);
     const evName = (id) => (S.events.find((e) => e.id === id) || {}).title;
-
     view().innerHTML = `
       <h1>Expenses</h1>
-      <p class="sub">Everything spent on the truck.</p>
-      <div class="chips">
-        <button class="chip ${S.exRange === "month" ? "on" : ""}" data-r="month">This month</button>
-        <button class="chip ${S.exRange === "last" ? "on" : ""}" data-r="last">Last month</button>
-        <button class="chip ${S.exRange === "all" ? "on" : ""}" data-r="all">All time</button>
-      </div>
+      <p class="sub">Every expense, newest on top.</p>
       <div class="card">
-        <div class="muted">${esc(r.label)} · total costs</div>
-        <div class="big">${money(spent + pay)}</div>
-        <div class="muted small">${money(spent)} expenses + ${money(pay)} worker pay</div>
+        <div class="muted">Total spent</div>
+        <div class="big">${money(total)}</div>
+        <div class="muted small">${list.length} expense${list.length === 1 ? "" : "s"}</div>
       </div>
-      ${cats.length ? `<h2>By category</h2><div class="list">${cats.map(([c, v]) => `
-        <div class="item" style="display:block">
-          <div class="row"><div class="name grow">${esc(c)}</div><div class="name">${money(v)}</div></div>
-          <div class="bar"><span style="width:${Math.max(3, Math.round((v / maxCat) * 100))}%"></span></div>
-        </div>`).join("")}</div>` : ""}
-      <h2>Expenses</h2>
-      ${list.length ? Object.keys(groups).map((k) => `
-        ${S.exRange === "all" ? `<div class="muted small" style="margin:14px 0 6px;font-weight:600">${esc(monthLabel(k))}</div>` : ""}
-        <div class="list">${groups[k].map((e) => `
-          <button class="item tap" style="width:100%" data-ex="${e.id}">
-            <div class="grow">
-              <div class="name">${esc(e.description || e.category)}</div>
-              <div class="meta">${fmtDate(e.spent_on)} · ${esc(e.category)}${e.event_id && evName(e.event_id) ? " · " + esc(evName(e.event_id)) : ""}</div>
-            </div>
-            <div class="name">${money(e.amount)}</div>
-          </button>`).join("")}</div>`).join("")
-        : `<div class="empty">No expenses ${S.exRange === "all" ? "yet" : "in " + esc(r.label)}. Tap + Add expense.</div>`}
+      ${list.length ? `<div class="list">${list.map((e) => `
+        <button class="item tap" style="width:100%" data-ex="${e.id}">
+          <div class="grow">
+            <div class="name">${esc(e.description || e.category)}</div>
+            <div class="meta">${esc(e.category)}${e.event_id && evName(e.event_id) ? " · " + esc(evName(e.event_id)) : ""}</div>
+          </div>
+          <div class="name">${money(e.amount)}</div>
+        </button>`).join("")}</div>`
+        : `<div class="empty">No expenses yet. Tap + Add expense.</div>`}
       <button class="btn fab" id="addEx">+ Add expense</button>`;
-
-    view().querySelectorAll("[data-r]").forEach((b) => (b.onclick = () => { S.exRange = b.dataset.r; viewExpenses(); }));
     view().querySelectorAll("[data-ex]").forEach((b) => (b.onclick = () => editExpense(S.expenses.find((e) => e.id == b.dataset.ex))));
     view().querySelector("#addEx").onclick = () => editExpense(null);
   }
@@ -446,10 +422,7 @@
       <h3>${isNew ? "Add expense" : "Edit expense"}</h3>
       <label>Amount ($)</label><input id="xA" type="number" inputmode="decimal" min="0" step="0.01" value="${x.amount === "" ? "" : num(x.amount)}" placeholder="0.00">
       <label>What was it?</label><input id="xD" value="${esc(x.description || "")}" placeholder="e.g. Hot dogs and buns from Costco">
-      <div class="row">
-        <div class="grow"><label>Category</label><select id="xC">${cats.map((c) => `<option ${c === x.category ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></div>
-        <div class="grow"><label>Date</label><input id="xT" type="date" value="${x.spent_on}"></div>
-      </div>
+      <label>Category</label><select id="xC">${cats.map((c) => `<option ${c === x.category ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
       <label>For an event? (optional)</label>
       <select id="xE"><option value="">No event</option>${evs.map((e) => `<option value="${e.id}" ${e.id === x.event_id ? "selected" : ""}>${esc(e.title)} · ${fmtDate(e.event_date)}</option>`).join("")}</select>
       <div class="actions">
@@ -462,7 +435,7 @@
           amount: Math.round((Number(el.querySelector("#xA").value) || 0) * 100) / 100,
           description: el.querySelector("#xD").value.trim() || null,
           category: el.querySelector("#xC").value,
-          spent_on: el.querySelector("#xT").value || today(),
+          spent_on: x.spent_on || today(),
           event_id: el.querySelector("#xE").value ? Number(el.querySelector("#xE").value) : null
         };
         if (!(row.amount > 0)) return toast("Enter the amount.");
@@ -472,7 +445,7 @@
           : await sb.from("expenses").update(row).eq("id", x.id).select().single();
         if (res.error) { ev.target.disabled = false; return toast(friendlyError(res.error)); }
         if (isNew) S.expenses.unshift(res.data); else Object.assign(x, res.data);
-        S.expenses.sort((a, b) => b.spent_on.localeCompare(a.spent_on) || b.id - a.id);
+        S.expenses.sort((a, b) => b.id - a.id);
         close(); render(); toast("Saved");
       };
       const del = el.querySelector("#del");
