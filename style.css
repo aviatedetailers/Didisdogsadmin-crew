@@ -201,3 +201,8 @@ details.manual summary { cursor: pointer; font-weight: 600; color: var(--navy); 
 .bar span { display: block; height: 100%; border-radius: 3px; background: var(--blue); }
 /* five tabs fit on small phones */
 nav.tabs button { font-size: 11px; letter-spacing: .05em; padding-left: 2px; padding-right: 2px; }
+.paycheck {
+  flex: none; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--tan); background: var(--card);
+  color: #fff; font-size: 16px; font-weight: 700; line-height: 1; display: inline-flex; align-items: center; justify-content: center; padding: 0;
+}
+.paycheck.on { background: var(--ok); border-color: var(--ok); }

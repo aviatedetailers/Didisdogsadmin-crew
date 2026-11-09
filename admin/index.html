@@ -390,32 +390,50 @@
   function viewExpenses() {
     const list = S.expenses;
     const total = list.reduce((a, e) => a + Number(e.amount), 0);
+    const unpaid = list.filter((e) => !e.paid).reduce((a, e) => a + Number(e.amount), 0);
     const evName = (id) => (S.events.find((e) => e.id === id) || {}).title;
+    const groups = {};
+    list.forEach((e) => (groups[e.category] = groups[e.category] || []).push(e));
+    const sum = (arr) => arr.reduce((a, e) => a + Number(e.amount), 0);
+    const order = Object.keys(groups).sort((x, y) => sum(groups[y]) - sum(groups[x]));
+    order.forEach((c) => groups[c].sort((x, y) => y.id - x.id));
+
     view().innerHTML = `
       <h1>Expenses</h1>
-      <p class="sub">Every expense, newest on top.</p>
+      <p class="sub">Tap the circle to mark paid. Tap an expense to edit it.</p>
       <div class="card">
         <div class="muted">Total spent</div>
         <div class="big">${money(total)}</div>
-        <div class="muted small">${list.length} expense${list.length === 1 ? "" : "s"}</div>
+        <div class="muted small">${money(total - unpaid)} paid${unpaid > 0 ? ` · <b style="color:var(--red)">${money(unpaid)} not paid</b>` : " · all paid"}</div>
       </div>
-      ${list.length ? `<div class="list">${list.map((e) => `
-        <button class="item tap" style="width:100%" data-ex="${e.id}">
-          <div class="grow">
-            <div class="name">${esc(e.description || e.category)}</div>
-            <div class="meta">${esc(e.category)}${e.event_id && evName(e.event_id) ? " · " + esc(evName(e.event_id)) : ""}</div>
-          </div>
-          <div class="name">${money(e.amount)}</div>
-        </button>`).join("")}</div>`
+      ${list.length ? order.map((c) => `
+        <h2 class="row" style="justify-content:space-between"><span>${esc(c)}</span><span>${money(sum(groups[c]))}</span></h2>
+        <div class="list">${groups[c].map((e) => `
+          <div class="item">
+            <button class="paycheck ${e.paid ? "on" : ""}" data-paid="${e.id}" aria-label="${e.paid ? "Paid. Tap to mark not paid" : "Not paid. Tap to mark paid"}">${e.paid ? "✓" : ""}</button>
+            <button class="tap grow" data-ex="${e.id}">
+              <div class="name">${esc(e.description || e.category)}</div>
+              <div class="meta">${e.paid ? "Paid" : `<span style="color:var(--red);font-weight:600">Not paid</span>`}${e.event_id && evName(e.event_id) ? " · " + esc(evName(e.event_id)) : ""}</div>
+            </button>
+            <div class="name">${money(e.amount)}</div>
+          </div>`).join("")}</div>`).join("")
         : `<div class="empty">No expenses yet. Tap + Add expense.</div>`}
       <button class="btn fab" id="addEx">+ Add expense</button>`;
+
     view().querySelectorAll("[data-ex]").forEach((b) => (b.onclick = () => editExpense(S.expenses.find((e) => e.id == b.dataset.ex))));
+    view().querySelectorAll("[data-paid]").forEach((b) => (b.onclick = async () => {
+      const e = S.expenses.find((x) => x.id == b.dataset.paid);
+      const next = !e.paid;
+      e.paid = next; viewExpenses();
+      const { error } = await sb.from("expenses").update({ paid: next }).eq("id", e.id);
+      if (error) { e.paid = !next; viewExpenses(); toast(friendlyError(error)); }
+    }));
     view().querySelector("#addEx").onclick = () => editExpense(null);
   }
 
   function editExpense(x) {
     const isNew = !x;
-    x = x || { spent_on: today(), amount: "", category: EX_CATS[0], description: "", event_id: null };
+    x = x || { spent_on: today(), amount: "", category: EX_CATS[0], description: "", event_id: null, paid: false };
     const cats = [...new Set([...EX_CATS, x.category])];
     const evs = S.events.slice().sort((a, b) => b.event_date.localeCompare(a.event_date)).slice(0, 40);
     sheet(`
@@ -423,7 +441,8 @@
       <label>Amount ($)</label><input id="xA" type="number" inputmode="decimal" min="0" step="0.01" value="${x.amount === "" ? "" : num(x.amount)}" placeholder="0.00">
       <label>What was it?</label><input id="xD" value="${esc(x.description || "")}" placeholder="e.g. Hot dogs and buns from Costco">
       <label>Category</label><select id="xC">${cats.map((c) => `<option ${c === x.category ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
-      <label>For an event? (optional)</label>
+      <div class="switch"><span>Paid</span><input id="xP" type="checkbox" ${x.paid ? "checked" : ""}></div>
+      <label style="margin-top:4px">For an event? (optional)</label>
       <select id="xE"><option value="">No event</option>${evs.map((e) => `<option value="${e.id}" ${e.id === x.event_id ? "selected" : ""}>${esc(e.title)} · ${fmtDate(e.event_date)}</option>`).join("")}</select>
       <div class="actions">
         ${isNew ? "" : `<button class="btn danger" id="del">Delete</button>`}
@@ -436,7 +455,8 @@
           description: el.querySelector("#xD").value.trim() || null,
           category: el.querySelector("#xC").value,
           spent_on: x.spent_on || today(),
-          event_id: el.querySelector("#xE").value ? Number(el.querySelector("#xE").value) : null
+          event_id: el.querySelector("#xE").value ? Number(el.querySelector("#xE").value) : null,
+          paid: el.querySelector("#xP").checked
         };
         if (!(row.amount > 0)) return toast("Enter the amount.");
         ev.target.disabled = true;
