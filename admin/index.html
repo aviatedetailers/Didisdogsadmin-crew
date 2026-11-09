@@ -374,7 +374,7 @@
   }
 
   // ---------- expenses ----------
-  const EX_CATS = ["Food & supplies", "Propane", "Gas / fuel", "Equipment", "Repairs", "Permits & insurance", "Marketing", "Other"];
+  const EX_CATS = ["Food & supplies", "Worker pay", "Gas / fuel", "Propane", "Equipment", "Trailer", "Repairs", "Kashrus", "Permits & insurance", "Phone & internet", "Marketing", "Other"];
   function monthKey(d) { return d.slice(0, 7); }
   function monthLabel(k) { const [y, m] = k.split("-").map(Number); return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" }); }
   function exRange() {
