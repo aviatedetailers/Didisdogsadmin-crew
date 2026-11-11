@@ -57,7 +57,7 @@
       sb.from("profiles").select("*").order("name"),
       sb.from("events").select("*").order("event_date").order("start_time"),
       sb.from("event_workers").select("*"),
-      sb.from("expenses").select("*").order("id", { ascending: false })
+      MODE === "manager" ? Promise.resolve({ data: [], error: null }) : sb.from("expenses").select("*").order("id", { ascending: false })
     ]);
     const err = a.error || b.error || c.error || d.error || e.error || x.error;
     if (err) toast(friendlyError(err));
@@ -72,7 +72,7 @@
       + S.people.filter((p) => isStaff(p) && S.shifts.some((x) => x.worker_id === p.id && !x.paid && x.end_time)).length;
     const todayEvents = S.events.filter((e) => e.event_date === today()).length;
     const tabs = MODE === "manager"
-      ? [["mine","My Hours"],["inv","Inventory"],["buy","Buy Soon"],["money","Expenses"]]
+      ? [["mine","My Hours"],["inv","Inventory"],["buy","Buy Soon"]]
       : [["inv","Inventory"],["buy","Buy Soon"],["events","Events"],["team","Workers"],["money","Expenses"]];
     app.innerHTML = `
       <header class="top"><div class="wrap">
@@ -812,7 +812,7 @@
       <label>Access</label>
       <select id="pRole">
         <option value="crew" ${p.role === "crew" ? "selected" : ""}>Worker (logs hours only)</option>
-        <option value="manager" ${p.role === "manager" ? "selected" : ""}>Manager (own hours, inventory, expenses)</option>
+        <option value="manager" ${p.role === "manager" ? "selected" : ""}>Manager (own hours, inventory)</option>
         <option value="admin" ${p.role === "admin" ? "selected" : ""}>Owner (sees everything)</option>
         ${self ? "" : `<option value="removed" ${p.role === "removed" ? "selected" : ""}>Removed (no access)</option>`}
       </select>
