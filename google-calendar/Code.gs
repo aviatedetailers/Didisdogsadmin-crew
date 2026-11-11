@@ -1,10 +1,20 @@
 // Didi's Dogs -> Google Calendar sync.
-// Paste into script.google.com while signed in to the calendar's Google account,
+// Paste into script.google.com (any Google account). It keeps a calendar named "Didi's Dogs"
+// up to date; share that calendar with whoever should see the events.
 // then Deploy > New deployment > Web app (Execute as: Me, Who has access: Anyone).
 // The app sends every event added, changed or deleted here, and this updates the calendar.
 
 const SECRET = "PASTE_SECRET_HERE";   // must match the app's setting
 const TZ = "America/New_York";
+const CAL_NAME = "Didi's Dogs";
+
+function getCal() {
+  const found = CalendarApp.getCalendarsByName(CAL_NAME);
+  if (found.length) return found[0];
+  const cal = CalendarApp.createCalendar(CAL_NAME, { timeZone: TZ });
+  cal.setColor(CalendarApp.Color.RED);
+  return cal;
+}
 
 function doGet() {
   return ContentService.createTextOutput("Didi's Dogs calendar sync is running.");
@@ -20,7 +30,7 @@ function doPost(e) {
   try {
     const props = PropertiesService.getScriptProperties();
     const key = "dd_" + msg.id;
-    const cal = CalendarApp.getDefaultCalendar();
+    const cal = getCal();
     const oldId = props.getProperty(key);
     let ev = oldId ? cal.getEventById(oldId) : null;
 
@@ -54,7 +64,7 @@ function doPost(e) {
 
 function reply(text) { return ContentService.createTextOutput(text); }
 
-// Run once from the editor to approve calendar access (pick "testSetup" and tap Run).
+// Run once from the editor: approves calendar access and creates the "Didi's Dogs" calendar.
 function testSetup() {
-  Logger.log("Calendar: " + CalendarApp.getDefaultCalendar().getName());
+  Logger.log("Ready. Calendar: " + getCal().getName());
 }
