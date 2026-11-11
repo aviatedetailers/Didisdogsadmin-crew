@@ -72,7 +72,7 @@
       + S.people.filter((p) => isStaff(p) && S.shifts.some((x) => x.worker_id === p.id && !x.paid && x.end_time)).length;
     const todayEvents = S.events.filter((e) => e.event_date === today()).length;
     const tabs = MODE === "manager"
-      ? [["mine","My Hours"],["inv","Inventory"],["buy","Buy Soon"]]
+      ? [["mine","My Hours"],["inv","Inventory"],["buy","Buy Soon"]].concat(S.me.can_see_events ? [["events","Events"]] : [])
       : [["inv","Inventory"],["buy","Buy Soon"],["events","Events"],["team","Workers"],["money","Expenses"]];
     app.innerHTML = `
       <header class="top"><div class="wrap">
@@ -375,7 +375,7 @@
     const shown = S.evView === "up" ? up : past;
     view().innerHTML = `
       <h1>Events</h1>
-      <p class="sub">Add an event and pick who's working. They'll see it on the crew page.</p>
+      <p class="sub">${MODE === "manager" ? "Upcoming and past events. The owner picks who's working." : "Add an event and pick who's working. They'll see it on the crew page."}</p>
       <div class="chips">
         <button class="chip ${S.evView === "up" ? "on" : ""}" data-ev="up">Upcoming (${up.length})</button>
         <button class="chip ${S.evView === "past" ? "on" : ""}" data-ev="past">Past (${past.length})</button>
@@ -388,7 +388,8 @@
             <div class="name">${esc(e.title)}${e.event_date === today() ? ` <span class="tag low">Today</span>` : ""}</div>
             <div class="meta">${fmtDate(e.event_date)} · ${evTime(e)}</div>
             ${e.location ? `<div class="meta">${esc(e.location)}</div>` : ""}
-            <div class="avatars">${ws.length ? ws.map((w) => `<span>${esc(w.name)}</span>`).join("") : `<span style="background:var(--red-soft);color:var(--red)">No workers yet</span>`}</div>
+            ${MODE === "manager" ? (ws.some((w) => w.id === S.me.id) ? `<div class="avatars"><span>You're working</span></div>` : "")
+              : `<div class="avatars">${ws.length ? ws.map((w) => `<span>${esc(w.name)}</span>`).join("") : `<span style="background:var(--red-soft);color:var(--red)">No workers yet</span>`}</div>`}
           </div>
         </button>`;
       }).join("")}</div>` : `<div class="empty">${S.evView === "up" ? "No upcoming events. Tap + Add event." : "No past events."}</div>`}
@@ -416,12 +417,12 @@
       <label>Notes for the crew</label><textarea id="eN" rows="2" placeholder="Guest count, parking, arrive early…">${esc(e.notes || "")}</textarea>
       ${!isNew && S.expenses.some((x) => x.event_id === e.id) ? `<div class="card" style="margin-top:14px"><div class="muted small">Spent on this event</div>
         <div class="name" style="font-size:20px">${money(S.expenses.filter((x) => x.event_id === e.id).reduce((a, x) => a + Number(x.amount), 0))}</div></div>` : ""}
-      <label>Who's working</label>
-      ${workers.length ? `<div class="list checks">${workers.map((w) => `
+      ${MODE === "manager" ? "" : `<label>Who's working</label>`}
+      ${MODE === "manager" ? "" : workers.length ? `<div class="list checks">${workers.map((w) => `
         <label><input type="checkbox" value="${w.id}" ${picked.has(w.id) ? "checked" : ""}> ${esc(w.name)}</label>`).join("")}</div>`
         : `<div class="empty">No approved workers yet.</div>`}
       <div class="actions">
-        ${isNew ? "" : `<button class="btn danger" id="del">Delete</button>`}
+        ${isNew || MODE === "manager" ? "" : `<button class="btn danger" id="del">Delete</button>`}
         <button class="btn" id="save">Save</button>
       </div>`, (el, close) => {
       if (isNew) el.querySelector("#eT").focus();
@@ -442,7 +443,8 @@
           : await sb.from("events").update(row).eq("id", e.id).select().single();
         if (res.error) { ev.target.disabled = false; return toast(friendlyError(res.error)); }
         const saved = res.data;
-        const want = [...el.querySelectorAll(".checks input:checked")].map((i) => i.value);
+        const want = MODE === "manager" ? S.assigns.filter((a) => a.event_id === saved.id).map((a) => a.worker_id)
+          : [...el.querySelectorAll(".checks input:checked")].map((i) => i.value);
         const had = S.assigns.filter((a) => a.event_id === saved.id).map((a) => a.worker_id);
         const add = want.filter((w) => !had.includes(w));
         const drop = had.filter((w) => !want.includes(w));
@@ -816,9 +818,12 @@
         <option value="admin" ${p.role === "admin" ? "selected" : ""}>Owner (sees everything)</option>
         ${self ? "" : `<option value="removed" ${p.role === "removed" ? "selected" : ""}>Removed (no access)</option>`}
       </select>
+      <div class="switch" id="evWrap" style="${p.role === "manager" ? "" : "display:none"}"><span>Manager can see and add events</span>
+        <input id="pEv" type="checkbox" ${p.can_see_events ? "checked" : ""}></div>
       <div class="actions"><button class="btn light" id="cancel">Cancel</button><button class="btn" id="save">Save</button></div>`,
     (el, close) => {
       el.querySelector("#cancel").onclick = close;
+      el.querySelector("#pRole").onchange = (ev) => { el.querySelector("#evWrap").style.display = ev.target.value === "manager" ? "" : "none"; };
       const zf = el.querySelector("#pZfile");
       el.querySelector("#pZup").onclick = () => zf.click();
       zf.onchange = async () => {
@@ -833,7 +838,8 @@
           phone: el.querySelector("#pPh").value.trim() || null,
           zelle: DD.cleanZelle(el.querySelector("#pZ").value) || null,
           pay_rate: Math.max(0, Number(el.querySelector("#pR").value) || 0),
-          role: el.querySelector("#pRole").value
+          role: el.querySelector("#pRole").value,
+          can_see_events: el.querySelector("#pRole").value === "manager" && el.querySelector("#pEv").checked
         };
         const rateChanged = Number(row.pay_rate) !== Number(p.pay_rate);
         if (await savePerson(p, row)) {
