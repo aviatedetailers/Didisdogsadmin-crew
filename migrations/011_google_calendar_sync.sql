@@ -21,14 +21,16 @@ declare
 begin
   if u is null or s is null then return null; end if;
   if tg_op = 'DELETE' then
-    perform net.http_post(url := u, body := jsonb_build_object('secret', s, 'action', 'delete', 'id', old.id));
+    perform net.http_post(url := u, body := jsonb_build_object('secret', s, 'action', 'delete', 'id', old.id),
+      timeout_milliseconds := 30000);
     return null;
   end if;
   r := new;
   perform net.http_post(url := u, body := jsonb_build_object(
     'secret', s, 'action', 'upsert', 'id', r.id, 'title', r.title,
     'date', r.event_date::text, 'start', r.start_time::text, 'end', r.end_time::text,
-    'location', r.location, 'notes', r.notes));
+    'location', r.location, 'notes', r.notes),
+    timeout_milliseconds := 30000);
   return null;
 end $$;
 revoke execute on function public.events_to_gcal() from public, anon, authenticated;
