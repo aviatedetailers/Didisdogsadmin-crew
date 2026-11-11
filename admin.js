@@ -372,14 +372,15 @@
   function viewEvents() {
     const up = S.events.filter((e) => e.event_date >= today());
     const past = S.events.filter((e) => e.event_date < today()).reverse();
+    if (MODE === "manager") S.evView = "up";   // managers only see upcoming events
     const shown = S.evView === "up" ? up : past;
     view().innerHTML = `
       <h1>Events</h1>
-      <p class="sub">${MODE === "manager" ? "Upcoming and past events. The owner picks who's working." : "Add an event and pick who's working. They'll see it on the crew page."}</p>
-      <div class="chips">
+      <p class="sub">${MODE === "manager" ? "Upcoming events. The owner picks who's working." : "Add an event and pick who's working. They'll see it on the crew page."}</p>
+      ${MODE === "manager" ? "" : `<div class="chips">
         <button class="chip ${S.evView === "up" ? "on" : ""}" data-ev="up">Upcoming (${up.length})</button>
         <button class="chip ${S.evView === "past" ? "on" : ""}" data-ev="past">Past (${past.length})</button>
-      </div>
+      </div>`}
       ${shown.length ? `<div class="list">${shown.map((e) => {
         const ws = eventWorkers(e.id);
         return `<button class="item tap" style="width:100%;align-items:flex-start" data-event="${e.id}">
