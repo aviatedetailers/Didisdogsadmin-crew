@@ -624,7 +624,7 @@
         const open = S.shifts.find((x) => x.worker_id === p.id && !x.end_time);
         return `<button class="item tap" style="width:100%" data-person="${p.id}">
           <span class="status ${red ? "red" : "green"}" aria-label="${red ? "Unpaid" : "Paid"}"></span>
-          <div class="grow"><div class="name">${esc(p.name)}${p.role === "admin" ? ` <span class="tag plain">Owner</span>` : p.role === "manager" ? ` <span class="tag plain">Manager</span>` : ""}</div>
+          <div class="grow"><div class="name">${esc(p.name)}${p.title ? ` <span class="tag plain">${esc(p.title)}</span>` : p.role === "admin" ? ` <span class="tag plain">Owner</span>` : p.role === "manager" ? ` <span class="tag plain">Manager</span>` : ""}</div>
             <div class="meta"><b style="color:var(--navy)">${num(S.shifts.filter((x) => x.worker_id === p.id).reduce((a, x) => a + Number(x.hours), 0))} hrs all-time</b>${red ? ` · ${num(u.hours)} unpaid` : ""}</div>
             ${open ? `<div class="onclock">On the clock since ${fmtTime(open.start_time)}</div>` : ""}</div>
           <div style="text-align:right">
@@ -819,6 +819,8 @@
         <option value="admin" ${p.role === "admin" ? "selected" : ""}>Owner (sees everything)</option>
         ${self ? "" : `<option value="removed" ${p.role === "removed" ? "selected" : ""}>Removed (no access)</option>`}
       </select>
+      <label>Label next to name (optional)</label>
+      <input id="pT" value="${esc(p.title || "")}" placeholder="e.g. Site Operator (leave blank for Owner / Manager)">
       <div class="switch" id="evWrap" style="${p.role === "manager" ? "" : "display:none"}"><span>Manager can see and add events</span>
         <input id="pEv" type="checkbox" ${p.can_see_events ? "checked" : ""}></div>
       <div class="actions"><button class="btn light" id="cancel">Cancel</button><button class="btn" id="save">Save</button></div>`,
@@ -840,7 +842,8 @@
           zelle: DD.cleanZelle(el.querySelector("#pZ").value) || null,
           pay_rate: Math.max(0, Number(el.querySelector("#pR").value) || 0),
           role: el.querySelector("#pRole").value,
-          can_see_events: el.querySelector("#pRole").value === "manager" && el.querySelector("#pEv").checked
+          can_see_events: el.querySelector("#pRole").value === "manager" && el.querySelector("#pEv").checked,
+          title: el.querySelector("#pT").value.trim() || null
         };
         const rateChanged = Number(row.pay_rate) !== Number(p.pay_rate);
         if (await savePerson(p, row)) {
